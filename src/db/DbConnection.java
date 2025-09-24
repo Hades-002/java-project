@@ -16,11 +16,15 @@ public abstract class DbConnection {
 
     public void connect() {
         try {
-            // call JDBC driver
             Class.forName(DRIVER);
             con = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+
+            // REMOVE THIS LINE
+            // con.setAutoCommit(true);
+
+            // System.out.println("Connected to DB: " + con.getCatalog());
         } catch (ClassNotFoundException | SQLException e) {
-            System.out.println(e);
+            System.out.println("DB Connection error: " + e.getMessage());
         }
     }
 

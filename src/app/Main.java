@@ -73,81 +73,112 @@ public class Main {
                                 System.out.print("Choose: ");
 
                                 int cp = sc.nextInt();
-                                sc.nextLine();
+                                sc.nextLine(); // consume newline
 
                                 switch (cp) {
-                                    case 1:
+                                    case 1: // Add Part
                                         clearScreen();
+                                        System.out.println("=== Add Computer Part ===");
                                         f.displayCategories();
+
                                         System.out.print("Enter part name: ");
                                         String name = sc.nextLine();
+
                                         System.out.print("Enter brand: ");
                                         String brand = sc.nextLine();
-                                        System.out.print("Enter category id: ");
+
+                                        System.out.print("Enter category ID: ");
                                         int categoryId = sc.nextInt();
+
                                         System.out.print("Enter price: ");
                                         int price = sc.nextInt();
+
                                         System.out.print("Enter stock quantity: ");
                                         int stock = sc.nextInt();
+
                                         f.addComputerParts(name, brand, categoryId, price, stock);
+                                        System.out.println("\nPart added successfully.");
                                         pause(sc);
                                         break;
 
                                     case 2:
                                         clearScreen();
-                                        System.out.print("Enter part ID to update: ");
+                                        System.out.println("=== Update Computer Part ===");
+
+                                        // Display all parts first (optional)
+                                        f.displayComputerPartsRecord();
+
+                                        System.out.print("\nEnter part ID to update: ");
                                         int updateId = sc.nextInt();
+                                        sc.nextLine(); // consume newline
+
+                                        // Check if the ID exists
+                                        if (!f.partExists(updateId)) {
+                                            pause(sc); // show warning and wait for Enter
+                                            break; // return to menu
+                                        }
+
+                                        // Clear the screen before showing current part details
+                                        clearScreen();
+                                        System.out.println("=== Update Computer Part ===");
+
+                                        // Show current details
+                                        f.displayPartDetails(updateId);
+
                                         System.out.print("Enter new price: ");
                                         int newPrice = sc.nextInt();
                                         System.out.print("Enter new stock: ");
                                         int newStock = sc.nextInt();
+
                                         f.updateComputerPartsRecord(updateId, newPrice, newStock);
                                         pause(sc);
                                         break;
 
-                                    case 3:
+                                    case 3: // Delete Part
                                         clearScreen();
-                                        System.out.print("Enter part ID to delete: ");
+                                        System.out.println("=== Delete Computer Part ===");
+                                        f.displayComputerPartsRecord();
+
+                                        System.out.print("\nEnter part ID to delete: ");
                                         int deleteId = sc.nextInt();
+
                                         f.deleteComputerPartsRecord(deleteId);
+                                        System.out.println("\nPart deleted successfully.");
                                         pause(sc);
                                         break;
 
                                     case 4: // Archive Part
                                         clearScreen();
                                         System.out.println("=== Archive Computer Part ===");
-
-                                        // Show active computer parts so user can see IDs
                                         f.displayComputerPartsRecord();
 
                                         System.out.print("\nEnter part ID to archive: ");
                                         int archiveId = sc.nextInt();
-                                        sc.nextLine();
+                                        sc.nextLine(); // consume leftover newline
 
                                         System.out.print("Enter your name to record who archives this part: ");
-                                        String deletedBy = sc.nextLine(); // record actual user/admin name
+                                        String deletedBy = sc.nextLine();
 
-                                        boolean archived = f.archiveComputerPart(archiveId, deletedBy); // update method
-                                                                                                        // to return
-                                                                                                        // true/false
+                                        boolean archived = f.archiveComputerPart(archiveId, deletedBy);
 
                                         if (archived) {
-                                            System.out.println("\n✅ Part archived successfully.");
+                                            System.out.println("\nPart archived successfully.");
                                         } else {
-                                            System.out.println("\n❌ Part not found or could not be archived.");
+                                            System.out.println("\nPart not found or could not be archived.");
                                         }
 
                                         pause(sc);
                                         break;
 
-                                    case 5:
+                                    case 5: // View Parts
                                         clearScreen();
+                                        System.out.println("=== View Computer Parts ===");
                                         f.displayComputerPartsRecord();
                                         pause(sc);
                                         break;
 
-                                    case 6:
-                                        cpRunning = false; // back to admin
+                                    case 6: // Back
+                                        cpRunning = false;
                                         break;
 
                                     default:
@@ -239,21 +270,40 @@ public class Main {
 
                                 case 2:
                                     clearScreen();
-                                    System.out.print("Enter user ID: ");
+                                    System.out.println("=== Update User ===");
+
+                                    // Display all users first
+                                    f.displayUsers(); // This should show a formatted table
+
+                                    System.out.print("\nEnter user ID to update: ");
                                     int uid = sc.nextInt();
-                                    sc.nextLine();
+                                    sc.nextLine(); // consume newline
+
+                                    // Optional: you could even fetch and show this specific user's info here
+
                                     System.out.print("Enter new email: ");
                                     String nemail = sc.nextLine();
-                                    System.out.print("Enter new role: ");
+
+                                    System.out.print("Enter new role (Admin/User): ");
                                     String nrole = sc.nextLine();
+
                                     f.updateUser(uid, nemail, nrole);
                                     break;
+
                                 case 3:
                                     clearScreen();
-                                    System.out.print("Enter user ID to delete: ");
+                                    System.out.println("=== Delete User ===");
+
+                                    // Display all users first
+                                    f.displayUsers(); // Shows formatted table
+
+                                    System.out.print("\nEnter user ID to delete: ");
                                     int duid = sc.nextInt();
+                                    sc.nextLine(); // consume newline
+
                                     f.deleteUser(duid);
                                     break;
+
                                 case 4:
                                     clearScreen();
                                     f.displayUsers();
@@ -266,7 +316,7 @@ public class Main {
 
                         case 4: // View Archive
                             clearScreen();
-                            f.displayArchivedParts();
+                            f.displayArchivedPartsMenu(sc); // pass the scanner
                             pause(sc);
                             break;
 
@@ -304,14 +354,37 @@ public class Main {
                             break;
                         case 3:
                             clearScreen();
-                            System.out.print("Enter part ID to update: ");
+                            System.out.println("=== Update Computer Part ===");
+
+                            // Display all parts first (optional)
+                            f.displayComputerPartsRecord();
+
+                            System.out.print("\nEnter part ID to update: ");
                             int updateId = sc.nextInt();
+                            sc.nextLine(); // consume newline
+
+                            // Check if the ID exists
+                            if (!f.partExists(updateId)) {
+                                pause(sc); // show warning and wait for Enter
+                                break; // return to menu
+                            }
+
+                            // Clear the screen before showing current part details
+                            clearScreen();
+                            System.out.println("=== Update Computer Part ===");
+
+                            // Show current details
+                            f.displayPartDetails(updateId);
+
                             System.out.print("Enter new price: ");
                             int newPrice = sc.nextInt();
                             System.out.print("Enter new stock: ");
                             int newStock = sc.nextInt();
+
                             f.updateComputerPartsRecord(updateId, newPrice, newStock);
+                            pause(sc);
                             break;
+
                         case 4:
                             f.logout();
                             running = false;

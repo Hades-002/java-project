@@ -3,6 +3,7 @@ package app;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Scanner;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -72,7 +73,7 @@ public class Function extends DbConnection {
     // LOGOUT
     // ==========================
     public void logout() {
-        System.out.println("👋 User logged out.");
+        System.out.println("User logged out.");
     }
 
     // =====================================================
@@ -154,14 +155,18 @@ public class Function extends DbConnection {
             prep = con.prepareStatement(query);
             ResultSet rs = prep.executeQuery();
 
-            System.out.println("👤 Users:");
+            System.out.printf("%-3s | %-15s | %-15s | %-25s | %-10s | %-12s%n",
+                    "ID", "First Name", "Last Name", "Email", "Role", "Phone");
+            System.out.println("--------------------------------------------------------------------------------");
+
             while (rs.next()) {
-                int id = rs.getInt("user_id");
-                String fname = rs.getString("first_name");
-                String lname = rs.getString("last_name");
-                String email = rs.getString("email");
-                String role = rs.getString("role");
-                System.out.println(id + " | " + fname + " " + lname + " | " + email + " | Role: " + role);
+                System.out.printf("%-3d | %-15s | %-15s | %-25s | %-10s | %-12s%n",
+                        rs.getInt("user_id"),
+                        rs.getString("first_name"),
+                        rs.getString("last_name"),
+                        rs.getString("email"),
+                        rs.getString("role"),
+                        rs.getString("phone_number"));
             }
             con.close();
         } catch (SQLException e) {
@@ -238,10 +243,11 @@ public class Function extends DbConnection {
             prep = con.prepareStatement(query);
             ResultSet rs = prep.executeQuery();
 
-            System.out.println(" Active Computer Parts:");
-            System.out.printf("%-3s | %-17s | %-8s | %-8s | %-7s | %-5s%n",
+            // System.out.println(" Active Computer Parts:");
+            System.out.printf("%-3s | %-25s | %-12s | %-12s | %-12s | %-12s%n",
                     "ID", "Name", "Brand", "Category", "Price", "Stock");
-            System.out.println("---------------------------------------------------------------");
+            System.out.println(
+                    "--------------------------------------------------------------------------------------------");
 
             while (rs.next()) {
                 int id = rs.getInt("part_id");
@@ -251,12 +257,42 @@ public class Function extends DbConnection {
                 int price = rs.getInt("price");
                 int stock = rs.getInt("stock_quantity");
 
-                System.out.printf("%-3d | %-17s | %-8s | %-8d | %-7d | %-5d%n",
+                System.out.printf("%-3d | %-25s | %-12s | %-12d | %-12d | %-12d%n",
                         id, name, brand, categoryId, price, stock);
             }
             con.close();
         } catch (SQLException e) {
             System.out.println(" Read error: " + e.getMessage());
+        }
+    }
+
+    public boolean partExists(int partId) {
+        try {
+            connect();
+            String query = "SELECT part_id, name, brand, price, stock_quantity FROM computer_parts WHERE part_id = ? AND archive = 0";
+            prep = con.prepareStatement(query);
+            prep.setInt(1, partId);
+            ResultSet rs = prep.executeQuery();
+
+            if (rs.next()) {
+                // Optionally, show the current details of the part
+                System.out.println("\nCurrent Part Details:");
+                System.out.printf("ID: %d | Name: %s | Brand: %s | Price: %d | Stock: %d%n",
+                        rs.getInt("part_id"),
+                        rs.getString("name"),
+                        rs.getString("brand"),
+                        rs.getInt("price"),
+                        rs.getInt("stock_quantity"));
+                con.close();
+                return true;
+            } else {
+                System.out.println("\nWarning: No computer part found with ID " + partId);
+                con.close();
+                return false;
+            }
+        } catch (SQLException e) {
+            System.out.println("Check part exists error: " + e.getMessage());
+            return false;
         }
     }
 
@@ -285,54 +321,21 @@ public class Function extends DbConnection {
         try {
             connect();
 
-            // 1. Fetch the part from computer_parts
-            String selectQuery = "SELECT * FROM computer_parts WHERE part_id = ?";
-            try (PreparedStatement selectStmt = con.prepareStatement(selectQuery)) {
-                selectStmt.setInt(1, partId);
-                try (ResultSet rs = selectStmt.executeQuery()) {
+            // Mark as archived
+            String query = "UPDATE computer_parts SET archive = 1, deleted_by = ? WHERE part_id = ?";
+            prep = con.prepareStatement(query);
+            prep.setString(1, deletedBy);
+            prep.setInt(2, partId);
 
-                    if (!rs.next()) {
-                        System.out.println("❌ Part ID " + partId + " not found in computer_parts.");
-                        return false;
-                    }
-
-                    // 2. Insert into archive
-                    String insertQuery = "INSERT INTO archive (part_id, name, brand, category_id, price, stock_quantity, deleted_by, deleted_date) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
-                    try (PreparedStatement insertStmt = con.prepareStatement(insertQuery)) {
-                        insertStmt.setInt(1, rs.getInt("part_id"));
-                        insertStmt.setString(2, rs.getString("name"));
-                        insertStmt.setString(3, rs.getString("brand"));
-                        insertStmt.setInt(4, rs.getInt("category_id"));
-                        insertStmt.setInt(5, rs.getInt("price"));
-                        insertStmt.setInt(6, rs.getInt("stock_quantity"));
-                        insertStmt.setString(7, deletedBy);
-
-                        int inserted = insertStmt.executeUpdate();
-                        if (inserted == 0) {
-                            System.out.println("❌ Failed to insert part into archive.");
-                            return false;
-                        }
-                    }
-
-                    // 3. Delete from main table
-                    String deleteQuery = "DELETE FROM computer_parts WHERE part_id = ?";
-                    try (PreparedStatement deleteStmt = con.prepareStatement(deleteQuery)) {
-                        deleteStmt.setInt(1, partId);
-                        int deleted = deleteStmt.executeUpdate();
-                        if (deleted > 0) {
-                            System.out.println("✅ Part ID " + partId + " archived successfully by " + deletedBy + ".");
-                        } else {
-                            System.out.println(
-                                    "⚠ Warning: Part inserted into archive but failed to delete from main table.");
-                        }
-                    }
-                }
-            }
-
+            int rows = prep.executeUpdate();
             con.close();
-            return true;
 
+            if (rows > 0) {
+                System.out.println("Part ID " + partId + " archived successfully by " + deletedBy + ".");
+                return true;
+            } else {
+                return false;
+            }
         } catch (SQLException e) {
             System.out.println("Archive error: " + e.getMessage());
             return false;
@@ -369,7 +372,7 @@ public class Function extends DbConnection {
             prep.setString(1, "%" + searchName + "%");
             ResultSet rs = prep.executeQuery();
 
-            System.out.println("🔍 Search Results:");
+            System.out.println("Search Results:");
             boolean found = false;
             while (rs.next()) {
                 found = true;
@@ -468,45 +471,128 @@ public class Function extends DbConnection {
         }
     }
 
-    // =====================================================
-    // DISPLAY ARCHIVED PARTS
-    // =====================================================
-    public void displayArchivedParts() {
+    // ==========================
+    // RESTORE OR DELETE ARCHIVED PARTS
+    // ==========================
+    public void displayArchivedPartsMenu(Scanner sc) {
         try {
             connect();
+            String query = "SELECT * FROM computer_parts WHERE archive = 1";
+            prep = con.prepareStatement(query);
+            ResultSet rs = prep.executeQuery();
 
-            String query = "SELECT * FROM archive ORDER BY deleted_date DESC";
-            try (PreparedStatement prep = con.prepareStatement(query);
-                    ResultSet rs = prep.executeQuery()) {
+            System.out.println("🗄️ Archived Parts:");
+            System.out.printf("%-3s | %-20s | %-10s | %-8s | %-7s | %-5s | %-10s%n",
+                    "ID", "Name", "Brand", "Category", "Price", "Stock", "Deleted By");
+            System.out.println("-------------------------------------------------------------");
 
-                System.out.println("🗄️ Archived Parts:");
-                System.out.printf("%-3s | %-20s | %-10s | %-8s | %-7s | %-5s | %-10s | %-19s%n",
-                        "ID", "Name", "Brand", "Category", "Price", "Stock", "Deleted By", "Deleted Date");
-                System.out
-                        .println("-----------------------------------------------------------------------------------");
+            boolean hasRows = false;
+            while (rs.next()) {
+                hasRows = true;
+                System.out.printf("%-3d | %-20s | %-10s | %-8d | %-7d | %-5d | %-10s%n",
+                        rs.getInt("part_id"),
+                        rs.getString("name"),
+                        rs.getString("brand"),
+                        rs.getInt("category_id"),
+                        rs.getInt("price"),
+                        rs.getInt("stock_quantity"),
+                        rs.getString("deleted_by"));
+            }
 
-                boolean hasRows = false;
-                while (rs.next()) {
-                    hasRows = true;
-                    System.out.printf("%-3d | %-20s | %-10s | %-8d | %-7d | %-5d | %-10s | %-19s%n",
-                            rs.getInt("archive_id"),
-                            rs.getString("name"),
-                            rs.getString("brand"),
-                            rs.getInt("category_id"),
-                            rs.getInt("price"),
-                            rs.getInt("stock_quantity"),
-                            rs.getString("deleted_by"),
-                            rs.getString("deleted_date"));
-                }
+            if (!hasRows) {
+                System.out.println("No archived parts found.");
+                con.close();
+                return;
+            }
 
-                if (!hasRows) {
-                    System.out.println("No archived parts found.");
-                }
+            con.close();
+
+            System.out.print("\nEnter Part ID to manage (or 0 to exit): ");
+            int partId = sc.nextInt();
+            sc.nextLine(); // consume newline
+            if (partId == 0)
+                return;
+
+            System.out.println("1. Restore part");
+            System.out.println("2. Delete permanently");
+            System.out.print("Choose an option: ");
+            int choice = sc.nextInt();
+            sc.nextLine();
+
+            if (choice == 1) {
+                restoreComputerPart(partId);
+            } else if (choice == 2) {
+                deleteArchivedComputerPart(partId);
+            } else {
+                System.out.println("Invalid choice.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Display archive error: " + e.getMessage());
+        }
+    }
+
+    // Restore an archived part
+    public void restoreComputerPart(int partId) {
+        try {
+            connect();
+            String query = "UPDATE computer_parts SET archive = 0, deleted_by = NULL WHERE part_id = ? AND archive = 1";
+            prep = con.prepareStatement(query);
+            prep.setInt(1, partId);
+            int rows = prep.executeUpdate();
+            if (rows > 0) {
+                System.out.println("Part ID " + partId + " has been restored.");
+            } else {
+                System.out.println("No archived part found with ID " + partId);
+            }
+            con.close();
+        } catch (SQLException e) {
+            System.out.println("Restore error: " + e.getMessage());
+        }
+    }
+
+    // Delete an archived part permanently
+    public void deleteArchivedComputerPart(int partId) {
+        try {
+            connect();
+            String query = "DELETE FROM computer_parts WHERE part_id = ? AND archive = 1";
+            prep = con.prepareStatement(query);
+            prep.setInt(1, partId);
+            int rows = prep.executeUpdate();
+            if (rows > 0) {
+                System.out.println("Archived part ID " + partId + " deleted permanently.");
+            } else {
+                System.out.println("No archived part found with ID " + partId);
+            }
+            con.close();
+        } catch (SQLException e) {
+            System.out.println("Delete archived part error: " + e.getMessage());
+        }
+    }
+
+    public void displayPartDetails(int partId) {
+        try {
+            connect();
+            String query = "SELECT part_id, name, brand, price, stock_quantity FROM computer_parts WHERE part_id = ? AND archive = 0";
+            prep = con.prepareStatement(query);
+            prep.setInt(1, partId);
+            ResultSet rs = prep.executeQuery();
+
+            if (rs.next()) {
+                System.out.println("\nCurrent Part Details:");
+                System.out.printf("ID: %d | Name: %s | Brand: %s | Price: %d | Stock: %d%n",
+                        rs.getInt("part_id"),
+                        rs.getString("name"),
+                        rs.getString("brand"),
+                        rs.getInt("price"),
+                        rs.getInt("stock_quantity"));
+            } else {
+                System.out.println("\n⚠️ Warning: No computer part found with ID " + partId);
             }
 
             con.close();
         } catch (SQLException e) {
-            System.out.println("Display archive error: " + e.getMessage());
+            System.out.println("Display part details error: " + e.getMessage());
         }
     }
 
